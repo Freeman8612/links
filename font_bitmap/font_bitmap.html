@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>font_bitmap</title>
+</head>
+<style>
+    #canvas1, #canvas2, #canvas3 {
+        border: 1px solid red;
+    }
+</style>
+<body>
+    <!-- 离屏幕canvas，负责获取点阵数据，显示出来没意义 -->
+    <canvas id="canvas1" style="display: block;"></canvas>
+    <hr/>
+    <!-- 绘制生成点阵数据的结果，用于预览 -->
+    <p>横置横排绘制预览(直取计算后):</p>
+    <canvas id="canvas2" height="500px" width="500px"></canvas>
+    <!-- 绘制竖直横排数据，用于预览 -->
+    <p>竖置横排绘制预览(转换后为LCD所用):</p>
+    <canvas id="canvas3" height="500px" width="500px"></canvas>
+</body>
+<script>
+const canvas1 = document.getElementById("canvas1");
+const ctx1 = canvas1.getContext("2d", { willReadFrequently: true });
+const canvas2 = document.getElementById("canvas2");
+const ctx2 = canvas2.getContext("2d", { willReadFrequently: true });
+const canvas3 = document.getElementById("canvas3");
+const ctx3 = canvas3.getContext("2d", { willReadFrequently: true });
+
+
+// 点阵大小（多少格，目前是等比缩放的）
+const block_count = 12;
+
+/* 显示固定文本 */
+const text = "当地时间3月14日，央视记者获悉，美国财政部长贝森特当日在致议员的一封信中表示，财政部将延长特别措施的使用期限至6月27日，以允许联邦政府支付账单，直到国会解决债务上限问题";
+let index = 0;
+!async function (params) {
+    while (true) {
+        if (index >= text.length) index = 0;
+
+        const data = generateFontData(text[index], block_count);
+        ctx2.clearRect(0, 0, 500, 500);
+        drawGridFont(data, block_count);
+        drawGrid(ctx2, block_count);
+        const LCDData = toLCDFontBytes(data, 12);
+        ctx3.clearRect(0, 0, 500, 500);
+        drawLCDFontBytes(ctx3, LCDData, block_count);
+        drawGrid(ctx3, block_count);
+        await new Promise(r => setTimeout(r, 333));
+        index++;
+    }
+}();
+
+/* 显示unicode码点范围文本 */
+// let code_position = 0x9fff;
+// !async function (params) {
+//     while (true) {
+//         if (code_position <= 0x4e00) break;
+
+//         const word = String.fromCodePoint(code_position);
+//         console.log(word);
+//         const data = generateFontData(word, block_count);
+//         ctx2.clearRect(0, 0, 500, 500);
+//         drawGridFont(data, block_count);
+//         drawGrid(ctx2, block_count);
+
+//         ctx2.save();
+//         ctx2.font = "18px 黑体";
+//         ctx2.fillText("0x" + code_position.toString(16), 20, 20);
+//         ctx2.restore();
+//         await new Promise(r => setTimeout(r, 100));
+//         code_position--;
+//     }
+// }();
+
+/* 利用ctx1获得点阵数据，返回恒指横排的字节流 */ 
+function generateFontData (word = "黎", blockCount = 16) {
+    ctx1.save();
+
+    if (!generateFontData.isSetCanvasSize) {
+        canvas1.setAttribute("height", blockCount);
+        canvas1.setAttribute("width", blockCount);
+        generateFontData.isSetCanvasSize = true;
+    }
+
+    ctx1.clearRect(0, 0, blockCount, blockCount);
+    ctx1.font = `${blockCount}px  宋体`;
+    ctx1.fillStyle = "black";
+    ctx1.textAlign = "center";
+    ctx1.textBaseline = "middle"
+    ctx1.fillText(word, blockCount / 2, blockCount / 2);
+
+    const res = [];
+    const s = ctx1.getImageData(0, 0, blockCount, blockCount, { colorSpace: "srgb" });
+    // console.log(s);
+
+    for (let i = 0; i < blockCount * blockCount; i++) {
+        const ss = s.data.slice(i * 4, i * 4 + 4);
+        res.push(ss[3] > 0 && ss[0] == 0 && ss[1] == 0 && ss[2] == 0 ? 1 : 0);
+    }
+
+    ctx1.restore();
+    // console.log(res);
+    return res;
+}
+generateFontData.isSetCanvasSize = false;
+
+/* 将横置横排的点阵数据会知道ctx2（canvas2） */ 
+function drawGridFont (pixelBlocks = [], count = 16) {
+    ctx2.save();
+
+    const step = Math.ceil(400 / count);
+
+    for (let y = 0; y < count; y++) {
+        for (let x = 0; x < count; x++) {
+            block = pixelBlocks[y * count + x];
+            // console.log(block);
+            ctx2.fillStyle = block ? "black" : "white";
+            ctx2.fillRect(50 + (x * step), 50 + (y * step), step, step);
+        }
+    }
+
+    ctx2.restore();
+}
+
+/* 绘制点阵网格（方便直观调试） */ 
+function drawGrid (ctx, count = 16) {
+    ctx.save();
+
+    let x = 50, y = 50;
+    const step = Math.ceil(400 / count);
+    ctx.fillStyle = "red";
+    for (let i = 0; i <= count; i++)
+    {
+        ctx.fillRect(x, 50, 1, count * step);
+        ctx.fillRect(50, y, count * step, 1);
+        x += step;
+        y += step;
+    }
+
+    ctx.restore();
+}
+
+/* 横置横排转竖置横排 */
+function toLCDFontBytes (points = [], size = 16)
+{
+    const res = new Array(size * Math.ceil(size / 8)).fill(0);
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const res_row = (y / 8) | 0;
+            const res_pos = res_row * size + x;
+            const bit_left_step = y % 8; // 低位在上高位在下
+
+            const point = points[y * size + x];
+            res[res_pos] |= (point << bit_left_step);
+        }
+    }
+    return res;
+}
+
+/* 绘制LCD横置横排数据 */
+function drawLCDFontBytes (ctx = null, bytes = [], count = 16) {
+    ctx.save();
+
+    const step = Math.ceil(400 / count);
+
+    for (let y = 0; y < count; y++) {
+        for (let x = 0; x < count; x++) {
+            const byte_pos = ( ((y / 8) | 0) * count ) + x;
+            const bit_left_step = y % 8;
+            
+            ctx.fillStyle = (bytes[byte_pos] & (1 << bit_left_step)) ? "black" : "white";
+            ctx.fillRect(50 + (x * step), 50 + (y * step), step, step);
+        }
+    }
+    ctx.restore();
+}
+</script>
+</html>
