@@ -32,3 +32,6 @@ W<宽点数>,H<高点数>,S<起始unicode范围>,E<结束unicode范围>
 
 * falsh写入成功，字库读取验证   
 ![./flash中读出验证.gif](./flash中读出验证.gif)     
+
+* 硬件连接  
+![./硬件.jpg](./硬件.jpg)     
