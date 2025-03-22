@@ -1,0 +1,2 @@
+/usr/bin/ar qc libFFBF.a  CMakeFiles/FFBF.dir/ffbf.c.o
+/usr/bin/ranlib libFFBF.a

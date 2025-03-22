@@ -1,0 +1,2 @@
+/usr/bin/ar qc libFlash.a  CMakeFiles/Flash.dir/W25QXXBV/Flash.c.o
+/usr/bin/ranlib libFlash.a

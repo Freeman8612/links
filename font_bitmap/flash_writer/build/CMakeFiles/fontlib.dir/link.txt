@@ -1,0 +1,1 @@
+/usr/bin/cc     CMakeFiles/fontlib.dir/main.c.o  -o fontlib libFlash.a libW25Q32BV.a libSPI.a libFFBF.a 

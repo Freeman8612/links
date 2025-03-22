@@ -1,0 +1,2 @@
+/usr/bin/ar qc libW25Q32BV.a  CMakeFiles/W25Q32BV.dir/W25QXXBV/W25Q32BV.c.o
+/usr/bin/ranlib libW25Q32BV.a

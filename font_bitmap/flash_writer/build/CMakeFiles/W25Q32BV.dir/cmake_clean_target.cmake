@@ -1,0 +1,3 @@
+file(REMOVE_RECURSE
+  "libW25Q32BV.a"
+)

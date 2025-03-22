@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/root/c-spi/W25QXXBV/Flash.c
+Flash.h
+/root/c-spi/W25QXXBV/Flash.h
+stdint.h
+-
+stdlib.h
+-
+stdbool.h
+-
+string.h
+-
+stdio.h
+-
+W25Q32BV.h
+/root/c-spi/W25QXXBV/W25Q32BV.h
+
+/root/c-spi/W25QXXBV/Flash.h
+stdbool.h
+-
+stdlib.h
+-
+stdint.h
+-
+
+/root/c-spi/W25QXXBV/W25Q32BV.h
+stdint.h
+-
+stdbool.h
+-
+stdlib.h
+-
+
