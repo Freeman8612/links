@@ -59,15 +59,15 @@ _Bool Flash_Write (size_t addr, uint8_t* pdata, size_t data_byte_len)
         }
         printf("copyed_len: %d, copy_len: %d\n", copyed_len, copy_len);
         printf("selector: %d\n", selector);
-        r = W25Q_FastRead(selector, selector_data, SELECTOR_LEN);
+        r = W25Q_FastRead(selector * SELECTOR_LEN, selector_data, SELECTOR_LEN);
         if (!r) return false;
         memcpy((uint8_t*)(selector_data + begin_pos), (uint8_t*)(pdata + copyed_len), copy_len);
 
-        WRITE_SELECTOR(selector, selector_data);
+        WRITE_SELECTOR(selector * SELECTOR_LEN, selector_data);
 
         begin_pos = 0;
         copyed_len += copy_len;
-        selector += SELECTOR_LEN;
+        selector++;
     }
 
     return true;

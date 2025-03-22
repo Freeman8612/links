@@ -20,7 +20,7 @@ static _Bool r;
 #define DUMP_MEM(MEM, LEN) do {\
 		printf("DUMP_MEM ================================\n");\
 		for (size_t i = 0; i < (LEN); i++) {\
-			printf("[%d]%d ", i, MEM[i]);\
+			printf("<%d>%d ", i, MEM[i]);\
 		}\
 		printf("\n");\
 	} while (0)
@@ -35,7 +35,7 @@ void W25Q_DELAY(uint16_t delay_ms)
 	usleep(delay_ms * 1000); // 毫秒要变成微妙
 }
 
-static void font_write (void)
+static void font_write (char* file_path)
 {
 	r = init_spi();
 	CR("init spi failed!");
@@ -44,7 +44,7 @@ static void font_write (void)
 	W25Q_Erase(0, EraseChip);
 	W25Q_WaitBusy();
 
-	FFBF_Object* ffbfs = ffbf("../12x12.ffbf");
+	FFBF_Object* ffbfs = ffbf(file_path);
 	if (ffbfs == NULL)
 	{
 		printf("ffbd == NULL!");
@@ -56,8 +56,7 @@ static void font_write (void)
 	{
 		FFBF_Object ffbf = *(ffbfs++);
 		if (ffbf.mem == NULL) break;
-		printf("数据长度: %d, 内存扩容长度: %d\n", ffbf.len, ffbf.mem_len);
-		printf("开始地址: %u\n", start_addr);
+		printf("开始地址: %u, 数据长度: %d, 内存扩容长度: %d\n", start_addr, ffbf.len, ffbf.mem_len);
 
 		_Bool r = Flash_Write(start_addr, ffbf.mem, ffbf.len);
 		W25Q_WaitBusy();
@@ -75,16 +74,16 @@ static void font_write (void)
 		return 0;
 }
 
-static void printf_font (uint8_t* data)
+static void printf_font (uint8_t* data, size_t size)
 {
 	printf("\033[%d;%dH", 1, 1);
 	printf("\033[J");
 
-	for (int i = 0; i < 12; i++) // y
+	for (int i = 0; i < size; i++) // y
 	{
-		for (int j = 0; j < 12; j++) // x
+		for (int j = 0; j < size; j++) // x
 		{
-			int pos = (i / 8) * 12 + j;
+			int pos = (i / 8) * size + j;
 			int left_move = i % 8;
 			_Bool p = data[pos] & (1 << left_move);
 			printf(p ? "\033[31m%s\033[0m" : "%s", p ? "x " : "o ");
@@ -93,20 +92,20 @@ static void printf_font (uint8_t* data)
 	}
 }
 
-int main (void)
-{	
+static void font_read (void)
+{
 	r = init_spi();
 	CR("init spi failed!");
 
-	uint8_t buf[1024 * 1024 * 2] = { 0 };
-	size_t len = (0x9fff - 0x4e00 + 1) + (126 - 32 + 1);
-	r = Flash_Read(0, buf, len);
+	size_t len = (0x9fff - 0x4e00 + 1);
+	uint8_t buf[2000000]= { 0 };
+	r = Flash_Read(538375, buf, len * 33);
 	CR("flash read failed!");
 
 	for (size_t i = 0; i < len; i++)
 	{
-		printf_font((buf + i * 25) + 1);
-		usleep(1000 * 333);
+		printf_font((buf + i * 33) + 1, 16);
+		usleep(1000 * 500);
 	}
 	// DUMP_MEM(buf, 32);
 
@@ -114,4 +113,11 @@ int main (void)
 		printf("end123\n");
 		deinit_spi();
 		return 0;
+}
+
+int main (int argc, char** argv)
+{	
+	// font_write("../font_bitmap.ffbf");
+	font_read();
+	return 0;	
 }

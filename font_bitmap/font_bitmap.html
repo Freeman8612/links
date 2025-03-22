@@ -11,9 +11,23 @@
     }
 </style>
 <body>
+    <h1>Font bitmap generater</h1>
+    <hr>
+    <div id="list">
+        <!-- <p>
+           <span style="margin-right: 8px;">1</span> <input placeholder="start point"> - <input placeholder="end point">
+        </p> -->
+    </div>
+
+    <div>
+    <button id="btn_add">+</button>
+    <button id="btn_generate">generate</button>
+    </div>
+
+    <hr>
+    
     <!-- 离屏幕canvas，负责获取点阵数据，显示出来没意义 -->
-    <canvas id="canvas1" style="display: block;"></canvas>
-    <hr/>
+    <canvas id="canvas1" style="display: block;" width="12" height="12"></canvas>
     <!-- 绘制生成点阵数据的结果，用于预览 -->
     <p>横置横排绘制预览(直取计算后):</p>
     <canvas id="canvas2" height="500px" width="500px"></canvas>
@@ -28,45 +42,196 @@ const canvas2 = document.getElementById("canvas2");
 const ctx2 = canvas2.getContext("2d", { willReadFrequently: true });
 const canvas3 = document.getElementById("canvas3");
 const ctx3 = canvas3.getContext("2d", { willReadFrequently: true });
+const btn_add = document.getElementById("btn_add");
+const btn_generate = document.getElementById("btn_generate");
+const list = document.getElementById("list");
+
+let INDEX = 1;
+
+btn_add.addEventListener("click", addItem);
+btn_generate.addEventListener("click", generate);
+
+addItem();
+
+async function generate ()
+{
+    set_disabled(true);
+
+    let ok = true;
+    const tuple = [];
+
+    if ([...list.children].length === 0)
+    {
+        alert("The list is empty!");
+        set_disabled(false);
+        return;
+    }
+
+    [...list.children].forEach((it, i) => {
+        const arr = [];
+        [...it.children].forEach((it1, i1) => {
+            if (it1.tagName !== "INPUT") return;
+            const v = it1.value;
+            if (isNaN(v) || v === "") {
+                alert(`${i + 1}, ${arr.length == 0 ? "start point" : arr.length == 1 ? "end point" : arr.length == 2 ? "size" : ""} invalidate!`);
+                ok = false;
+            }
+            arr.push(Number(v));
+        });
+        tuple.push(arr);
+    });
+
+    if (!ok) {
+        set_disabled(false);
+        return;
+    }
 
 
-// 点阵大小（多少格，目前是等比缩放的）
-const block_count = 12;
+    let s = ``;
 
-/* 显示unicode码点范围文本 */
-let code_position = 0x4e00;
-let str = `W${block_count},H${block_count},S0x4e00,E0x9fff\n`;
-!async function (params) {
+    for (let i = 0; i < tuple.length; i++)
+    {
+        const arr = tuple[i];
+        console.log(arr);
+        const [byte_len, data] = await generateCoderRangeData(...arr, rate => {
+            list.children[i].lastChild.innerHTML = rate;
+        });
+        list.children[i].lastChild.innerHTML = "byte size: " + byte_len;
+        s += data;
+    }
+
+    set_disabled(false);
+
+    const file = new File([s], "");
+    const a = document.createElement("a");
+    a.setAttribute("download", "font_bitmap.ffbf");
+    a.href = URL.createObjectURL(file);
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+}
+
+function set_disabled (is = true)
+{
+    [...list.children].forEach(it => {
+        [...it.children].forEach(it1 => {
+            if (it1.tagName == "INPUT" || it1.tagName == "BUTTON") {
+                if (is) it1.setAttribute("disabled", is);
+                else it1.removeAttribute("disabled");
+            }
+        });
+    });
+    if (is) {
+        btn_add.setAttribute("disabled", true);
+        btn_generate.setAttribute("disabled", true);
+    } else {
+        btn_add.removeAttribute("disabled");
+        btn_generate.removeAttribute("disabled");
+    }
+}
+
+function onItemDelete (index, item)
+{
+    list.removeChild(item);
+    resetIndex();
+}
+
+function resetIndex ()
+{
+    INDEX = 1;
+    const items = list.children;
+    [...items].forEach(it => {
+        it.firstChild.innerHTML = INDEX++;
+    });
+}
+
+function addItem ()
+{
+    const item = createItem(INDEX++);
+    list.appendChild(item);
+}
+
+// 创建item
+function createItem (index)
+{
+    const p = document.createElement("p");
+    const span = document.createElement("span");
+    const inp1 = document.createElement("input");
+    const inp2 = document.createElement("input");
+    const inp3 = document.createElement("input");
+    const sep = document.createTextNode(" - ");
+    const del = document.createElement("button");
+    const progress = document.createElement("span");
+
+    p.appendChild(span);
+    span.style = `width: 32px; display: inline-block;`;
+    p.setAttribute("data-index", index);
+    span.innerText = index;
+    p.appendChild(inp1);
+    p.appendChild(sep);
+    p.appendChild(inp2);
+    inp1.setAttribute("placeholder", "start point");
+    inp2.setAttribute("placeholder", "end point");
+    inp3.setAttribute("placeholder", "size");
+    inp3.value = 12;
+    inp3.style = `margin-left: 16px; display: inline-block; width: 32px;`;
+    p.appendChild(inp3);
+    p.appendChild(del);
+    del.innerHTML = "delete";
+    del.style = `margin-left: 8px;`;
+    del.onclick = onItemDelete.bind(null, index, p);
+    p.appendChild(progress);
+    progress.setAttribute("id", "rate");
+
+    return p;
+}
+
+
+
+async function generateCoderRangeData (start_point, end_point, size, progress_cb = () => {})
+{
+
+    const start_offset = start_point;
+    const range = end_point - start_point + 1;
+    let byte_count = 0;
+    let str = `W${size},H${size},S${start_point},E${end_point}\n`;
+
     while (true) {
-        if (code_position > 0x9fff) break;
+        if (start_point > end_point) break;
 
-        const word = String.fromCodePoint(code_position);
+        const word = String.fromCodePoint(start_point);
         console.log(word);
-        const data = generateFontData(word, block_count);
+        const data = generateFontData(word, size);
         ctx2.clearRect(0, 0, 500, 500);
-        drawGridFont(data, block_count);
-        drawGrid(ctx2, block_count);
+        drawGridFont(data, size);
+        drawGrid(ctx2, size);
 
         function drawUnicodePoint () {
             ctx2.save();
             ctx2.font = "18px 黑体";
-            ctx2.fillText("0x" + code_position.toString(16), 20, 20);
+            ctx2.fillText("0x" + start_point.toString(16), 20, 20);
             ctx2.restore();
         }
         drawUnicodePoint();
 
-        const [LCDData, start, width] = toLCDFontBytes(data, block_count, true);
+        const [LCDData, left_space, right_space] = toLCDFontBytes(data, size, true);
         ctx3.clearRect(0, 0, 500, 500);
-        drawLCDFontBytes(ctx3, LCDData, block_count);
-        drawGrid(ctx3, block_count);
+        drawLCDFontBytes(ctx3, LCDData, size);
+        drawGrid(ctx3, size);
 
-        str += `${(start << 4) | (width & 0x0f)},${LCDData.join(",")}\n`;
+        str += `${(left_space << 4) | (right_space & 0x0f)},${LCDData.join(",")}\n`;
+        byte_count += (1 + LCDData.length);
+
+        const rate = (Number( ((start_point - start_offset) / range).toFixed(2) ) * 100) | 0;
+        setTimeout(() => progress_cb(rate + "%"), 0);
 
         await new Promise(r => setTimeout(r, 1));
-        code_position++;
+        start_point++;
     }
-    console.log(str);
-}();
+    
+    return [byte_count, str];
+}
 
 /* 利用ctx1获得点阵数据，返回恒指横排的字节流 */ 
 function generateFontData (word = "黎", blockCount = 16) {
@@ -166,7 +331,6 @@ function drawGrid (ctx, count = 16) {
 /* 横置横排转竖置横排 */
 function toLCDFontBytes (points = [], size = 16)
 {   
-    let width = size;
     let start_p = -1, end_p = -1;
     /* 不定宽字体的宽度获取 */
     for (let col = 0; col < size; col++) {
@@ -182,9 +346,11 @@ function toLCDFontBytes (points = [], size = 16)
         }
         if (start_p != -1 && end_p != -1) break;
     }
-    width = end_p - start_p + 1;
-    width += 1; /* NOTE 右侧增加1点宽的空白 */
-    console.log("start_p: ", start_p, "end_p: ", end_p, "width: ", width);
+
+    console.log("start_p: ", start_p, "end_p: ", end_p, "width: ", end_p - start_p + 1);
+
+    const left_space = start_p < 0 ? 0 : start_p;
+    const right_space = end_p < 0 ? 0 : (size - 1) - end_p - 1/*这个减去1是右侧故意多留一个空格*/;
   
     const res = new Array( Math.ceil(size / 8)/*垂直多少个8bit*/ * size).fill(0);
 
@@ -198,7 +364,7 @@ function toLCDFontBytes (points = [], size = 16)
     }
     // console.log("fuck: ", res);
 
-    return [res, start_p < 0 ? 0 : start_p, width];
+    return [res, left_space, right_space];
 }
 
 /* 绘制LCD横置横排数据 */

@@ -12,13 +12,13 @@ int read_to_symbol (FILE* fd, uint8_t* bytes, char cha)
 	while (true)
 	{
 		uint32_t c = fgetc(fd);
+		if (c == EOF) break;
 		if (len > 50) 
 		{
 			len = -1;
 			printf("太长了！");
 			break;
 		}
-		if (feof(fd) != 0) break;
 		if (c == cha) break;
 		if (bytes != NULL) *(bytes + len) = c;
 		len++;
@@ -42,15 +42,8 @@ static void handle_data (FILE* fd, FFBF_Object* ffbf)
 	{
 		c = fgetc(fd);
 		if (c == ' ') continue;
-		else if ((c == 13 || c == ',' || c == EOF) && i > 0)
+		else if ((c == 10 || c == ',' || c == EOF) && i > 0)
 		{
-			if (c == 13)
-			{
-				c = fgetc(fd);
-				if (feof(fd) != 0) break;
-				if (c != 10) break;
-			}
-
 			uint64_t v; // NOTE NOTE  血泪！ 这个类型一定要给大，时间给到最大，不然sscanf捕获不到数据然后还会出发一些很奇怪的BUG
 			sscanf(s, "%lld", &v);
 
@@ -122,14 +115,14 @@ FFBF_Object* ffbf (char* file_path)
 		if (c == '#')
 		{	
 			C();
-			l = read_to_symbol(fd, s, 13);
+			l = read_to_symbol(fd, s, 10);
 			if (l > 0) printf("comment: %s\n", s);
 		}
 		else if (c == 'W')
 		{
 			C();
 			fseek(fd, -1, SEEK_CUR);
-			l = read_to_symbol(fd, s, 13);
+			l = read_to_symbol(fd, s, 10);
 			if (l > 0) printf("%s\n", s);
             ffbf_objects[ffbf_objects_len].mem = malloc(BLOCK_LEN * sizeof(uint8_t));
             ffbf_objects_len++;
