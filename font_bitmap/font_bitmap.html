@@ -33,47 +33,40 @@ const ctx3 = canvas3.getContext("2d", { willReadFrequently: true });
 // 点阵大小（多少格，目前是等比缩放的）
 const block_count = 12;
 
-/* 显示固定文本 */
-const text = "当地时间3月14日，央视记者获悉，美国财政部长贝森特当日在致议员的一封信中表示，财政部将延长特别措施的使用期限至6月27日，以允许联邦政府支付账单，直到国会解决债务上限问题";
-let index = 0;
+/* 显示unicode码点范围文本 */
+let code_position = 0x4e00;
+let str = `W${block_count},H${block_count},S0x4e00,E0x9fff\n`;
 !async function (params) {
     while (true) {
-        if (index >= text.length) index = 0;
+        if (code_position > 0x9fff) break;
 
-        const data = generateFontData(text[index], block_count);
+        const word = String.fromCodePoint(code_position);
+        console.log(word);
+        const data = generateFontData(word, block_count);
         ctx2.clearRect(0, 0, 500, 500);
         drawGridFont(data, block_count);
         drawGrid(ctx2, block_count);
-        const LCDData = toLCDFontBytes(data, 12);
+
+        function drawUnicodePoint () {
+            ctx2.save();
+            ctx2.font = "18px 黑体";
+            ctx2.fillText("0x" + code_position.toString(16), 20, 20);
+            ctx2.restore();
+        }
+        drawUnicodePoint();
+
+        const [LCDData, start, width] = toLCDFontBytes(data, block_count, true);
         ctx3.clearRect(0, 0, 500, 500);
         drawLCDFontBytes(ctx3, LCDData, block_count);
         drawGrid(ctx3, block_count);
-        await new Promise(r => setTimeout(r, 333));
-        index++;
+
+        str += `${(start << 4) | (width & 0x0f)},${LCDData.join(",")}\n`;
+
+        await new Promise(r => setTimeout(r, 1));
+        code_position++;
     }
+    console.log(str);
 }();
-
-/* 显示unicode码点范围文本 */
-// let code_position = 0x9fff;
-// !async function (params) {
-//     while (true) {
-//         if (code_position <= 0x4e00) break;
-
-//         const word = String.fromCodePoint(code_position);
-//         console.log(word);
-//         const data = generateFontData(word, block_count);
-//         ctx2.clearRect(0, 0, 500, 500);
-//         drawGridFont(data, block_count);
-//         drawGrid(ctx2, block_count);
-
-//         ctx2.save();
-//         ctx2.font = "18px 黑体";
-//         ctx2.fillText("0x" + code_position.toString(16), 20, 20);
-//         ctx2.restore();
-//         await new Promise(r => setTimeout(r, 100));
-//         code_position--;
-//     }
-// }();
 
 /* 利用ctx1获得点阵数据，返回恒指横排的字节流 */ 
 function generateFontData (word = "黎", blockCount = 16) {
@@ -86,11 +79,38 @@ function generateFontData (word = "黎", blockCount = 16) {
     }
 
     ctx1.clearRect(0, 0, blockCount, blockCount);
-    ctx1.font = `${blockCount}px  宋体`;
+    ctx1.font = `${blockCount}px SimSun`;
     ctx1.fillStyle = "black";
     ctx1.textAlign = "center";
     ctx1.textBaseline = "middle"
     ctx1.fillText(word, blockCount / 2, blockCount / 2);
+
+    /* 宽度检测(用于不定款字体测量) */
+    /*
+    let start_p = -1, end_p = -1;
+    for (let i = 0; i < blockCount; i++) {
+        if (start_p === -1) {
+            const d = ctx1.getImageData(i, 0, 1, blockCount, { colorSpace: "srgb" });
+            for (let j = 0; j < blockCount; j++) {
+                if (d.data[j * 4 + 3] > 0) {
+                    start_p = i;
+                    break;
+                }
+            }
+        }
+        if (end_p === -1) {
+            const d = ctx1.getImageData(blockCount - 1 - i, 0, 1, blockCount, { colorSpace: "srgb" });
+            for (let j = 0; j < blockCount; j++) {
+                if (d.data[j * 4 + 3] > 0) {
+                    end_p = blockCount - i - 1;
+                    break;
+                }
+            }
+        }
+        if (start_p !== -1 && end_p !== -1) break;
+    }
+    console.log(start_p + " <-> " + end_p);
+    */
 
     const res = [];
     const s = ctx1.getImageData(0, 0, blockCount, blockCount, { colorSpace: "srgb" });
@@ -145,37 +165,58 @@ function drawGrid (ctx, count = 16) {
 
 /* 横置横排转竖置横排 */
 function toLCDFontBytes (points = [], size = 16)
-{
-    const res = new Array(size * Math.ceil(size / 8)).fill(0);
+{   
+    let width = size;
+    let start_p = -1, end_p = -1;
+    /* 不定宽字体的宽度获取 */
+    for (let col = 0; col < size; col++) {
+        if (start_p === -1) {
+            for (let i = 0; i < size; i++) {
+                if (points[i * size + col] > 0) start_p = col;
+            }
+        }
+        if (end_p === -1) {
+            for (let i = 0; i < size; i++) {
+                if (points[i * size + (size - col - 1)] > 0) end_p = size - col - 1;
+            }
+        }
+        if (start_p != -1 && end_p != -1) break;
+    }
+    width = end_p - start_p + 1;
+    width += 1; /* NOTE 右侧增加1点宽的空白 */
+    console.log("start_p: ", start_p, "end_p: ", end_p, "width: ", width);
+  
+    const res = new Array( Math.ceil(size / 8)/*垂直多少个8bit*/ * size).fill(0);
 
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const res_row = (y / 8) | 0;
-            const res_pos = res_row * size + x;
-            const bit_left_step = y % 8; // 低位在上高位在下
-
-            const point = points[y * size + x];
-            res[res_pos] |= (point << bit_left_step);
+    for (let i = 0; i < size; i++) { // 每个垂直像素行
+        for (let j = 0; j < size; j++) { // 每个水平像素点
+            const color = points[i * size/* 使用原来的宽度 */ + j];
+            const res_row = (i / 8) | 0;
+            const res_pos = res_row * size + j;
+            res[res_pos] |= (color << (i % 8));
         }
     }
-    return res;
+    // console.log("fuck: ", res);
+
+    return [res, start_p < 0 ? 0 : start_p, width];
 }
 
 /* 绘制LCD横置横排数据 */
-function drawLCDFontBytes (ctx = null, bytes = [], count = 16) {
+function drawLCDFontBytes (ctx = null, bytes = [], size = 16) {
     ctx.save();
 
-    const step = Math.ceil(400 / count);
+    const step = Math.ceil(400 / size);
 
-    for (let y = 0; y < count; y++) {
-        for (let x = 0; x < count; x++) {
-            const byte_pos = ( ((y / 8) | 0) * count ) + x;
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const byte_pos = ( ((y / 8) | 0) * size ) + x;
             const bit_left_step = y % 8;
             
             ctx.fillStyle = (bytes[byte_pos] & (1 << bit_left_step)) ? "black" : "white";
             ctx.fillRect(50 + (x * step), 50 + (y * step), step, step);
         }
     }
+
     ctx.restore();
 }
 </script>
