@@ -35,7 +35,7 @@ void W25Q_DELAY(uint16_t delay_ms)
 	usleep(delay_ms * 1000); // 毫秒要变成微妙
 }
 
-static void font_write (char* file_path)
+static void font_write (size_t addr, char* file_path)
 {
 	r = init_spi();
 	CR("init spi failed!");
@@ -51,7 +51,7 @@ static void font_write (char* file_path)
 		return 0;
 	}
 
-	size_t start_addr = 0;
+	size_t start_addr = addr;
 	while (true)
 	{
 		FFBF_Object ffbf = *(ffbfs++);
@@ -92,19 +92,28 @@ static void printf_font (uint8_t* data, size_t size)
 	}
 }
 
-static void font_read (void)
+static void font_read (uint64_t start_addr, uint64_t read_count, uint8_t size)
 {
 	r = init_spi();
 	CR("init spi failed!");
 
-	size_t len = 100;
+	int char_step = 0;
+
+	if (size == 12) char_step = 25;
+	else if (size == 16) char_step = 33;
+	else {
+		printf("size 只能是12或者16!\n");
+		return;
+	}
+
 	uint8_t buf[2000000]= { 0 };
-	r = Flash_Read(531575, buf, len * 25);
+
+	r = Flash_Read(start_addr, buf, read_count * char_step);
 	CR("flash read failed!");
 
-	for (size_t i = 0; i < len; i++)
+	for (size_t i = 0; i < read_count; i++)
 	{
-		printf_font((buf + i * 25) + 1, 12);
+		printf_font((buf + i * char_step) + 1, size);
 		usleep(1000 * 333);
 	}
 	// DUMP_MEM(buf, 32);
@@ -115,9 +124,54 @@ static void font_read (void)
 		return 0;
 }
 
+void printf_help (char* msg)
+{
+	printf("%s\n", msg);
+	printf("========= command help ====================================\n");
+	printf("	read  <start_addr> <read_count> <size>  # size只能为12或者16\n");
+	printf("	write <write_addr> <file_path>\n");
+}
+
 int main (int argc, char** argv)
 {	
+	if (argc < 1 + 2) 
+	{
+		printf_help("paramer error!\n");
+		return 0;
+	}
+
+	if (strcmp(*(argv + 1), "read") == 0)
+	{
+		if (argc < 5) 
+		{
+			printf_help("read 参数数量不足！\n");
+			return 0;
+		}
+		
+		#define C() if (*endptr != '\0') {\
+				printf_help("read 参数不正确!\n");\
+				return;\
+			}
+
+		char* endptr = NULL;
+		uint64_t start_addr = strtoull(*(argv + 2), &endptr, 10);
+		C();
+		uint64_t read_count = strtoull(*(argv + 3), &endptr, 10);
+		C()
+		uint64_t size       = strtoull(*(argv + 4), &endptr, 10);
+		C();
+
+		printf("%llu, %llu, %llu\n", start_addr, read_count, size);
+		font_read(start_addr, read_count, size);
+	}
+	else if (strcmp(*(argv + 1), "write") == 0)
+	{
+
+	}
+	else {
+		printf_help("command invalidate!\n");
+	}
+
 	// font_write("../font_bitmap.ffbf");
-	font_read();
 	return 0;	
 }
