@@ -47,6 +47,7 @@ const btn_generate = document.getElementById("btn_generate");
 const list = document.getElementById("list");
 
 let INDEX = 1;
+let PREV_LEN = 0;
 
 btn_add.addEventListener("click", addItem);
 btn_generate.addEventListener("click", generate);
@@ -68,10 +69,12 @@ async function generate ()
     }
 
     [...list.children].forEach((it, i) => {
+        if(it.getAttribute("data-index") === null) return;
         const arr = [];
         [...it.children].forEach((it1, i1) => {
             if (it1.tagName !== "INPUT") return;
             const v = it1.value;
+            console.warn("vvvv", v);
             if (isNaN(v) || v === "") {
                 alert(`${i + 1}, ${arr.length == 0 ? "start point" : arr.length == 1 ? "end point" : arr.length == 2 ? "size" : ""} invalidate!`);
                 ok = false;
@@ -86,6 +89,12 @@ async function generate ()
         return;
     }
 
+   
+    const h6 = list.getElementsByTagName("h6")[0];
+    if (h6) list.removeChild(h6);
+
+    PREV_LEN = 0;
+
 
     let s = ``;
 
@@ -96,9 +105,16 @@ async function generate ()
         const [byte_len, data] = await generateCoderRangeData(...arr, rate => {
             list.children[i].lastChild.innerHTML = rate;
         });
-        list.children[i].lastChild.innerHTML = "byte size: " + byte_len;
-        s += data;
+        list.children[i].lastChild.innerHTML = `byte size: ${byte_len}, start_addr: ${PREV_LEN}`;
+
+        s += `\n\n\n#start_addr: ${PREV_LEN}, size: ${byte_len}byte\n` + data;
+        PREV_LEN += byte_len;
+
     }
+
+    const p = document.createElement("h6");
+    p.innerHTML = `total size: ${PREV_LEN} byte`;
+    list.appendChild(p);
 
     set_disabled(false);
 
@@ -224,7 +240,7 @@ async function generateCoderRangeData (start_point, end_point, size, progress_cb
         byte_count += (1 + LCDData.length);
 
         const rate = (Number( ((start_point - start_offset) / range).toFixed(2) ) * 100) | 0;
-        setTimeout(() => progress_cb(rate + "%"), 0);
+        setTimeout(() => progress_cb(rate + "% "), 0);
 
         await new Promise(r => setTimeout(r, 1));
         start_point++;
@@ -237,10 +253,10 @@ async function generateCoderRangeData (start_point, end_point, size, progress_cb
 function generateFontData (word = "黎", blockCount = 16) {
     ctx1.save();
 
-    if (!generateFontData.isSetCanvasSize) {
+    if (generateFontData.size != blockCount) {
         canvas1.setAttribute("height", blockCount);
         canvas1.setAttribute("width", blockCount);
-        generateFontData.isSetCanvasSize = true;
+        generateFontData.size = blockCount;
     }
 
     ctx1.clearRect(0, 0, blockCount, blockCount);
@@ -290,7 +306,7 @@ function generateFontData (word = "黎", blockCount = 16) {
     // console.log(res);
     return res;
 }
-generateFontData.isSetCanvasSize = false;
+generateFontData.size = 12;
 
 /* 将横置横排的点阵数据会知道ctx2（canvas2） */ 
 function drawGridFont (pixelBlocks = [], count = 16) {

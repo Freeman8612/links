@@ -97,15 +97,15 @@ static void font_read (void)
 	r = init_spi();
 	CR("init spi failed!");
 
-	size_t len = (0x9fff - 0x4e00 + 1);
+	size_t len = 100;
 	uint8_t buf[2000000]= { 0 };
-	r = Flash_Read(538375, buf, len * 33);
+	r = Flash_Read(531575, buf, len * 25);
 	CR("flash read failed!");
 
 	for (size_t i = 0; i < len; i++)
 	{
-		printf_font((buf + i * 33) + 1, 16);
-		usleep(1000 * 500);
+		printf_font((buf + i * 25) + 1, 12);
+		usleep(1000 * 333);
 	}
 	// DUMP_MEM(buf, 32);
 
