@@ -16,7 +16,7 @@ static int r = -1;
 
 static int spi_fd = -1;
 static char* dev = "/dev/spidev0.0";
-static uint32_t spi_hz = 10000 * 10;
+static uint32_t spi_hz = 10000 * 5;
 static uint8_t spi_mode = SPI_MODE_0;
 static uint8_t word_width = 8;
 

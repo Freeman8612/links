@@ -37,19 +37,19 @@ void W25Q_DELAY(uint16_t delay_ms)
 
 static void font_write (size_t addr, char* file_path)
 {
-	r = init_spi();
-	CR("init spi failed!");
-
-	W25Q_EnableWrite();
-	W25Q_Erase(0, EraseChip);
-	W25Q_WaitBusy();
-
 	FFBF_Object* ffbfs = ffbf(file_path);
 	if (ffbfs == NULL)
 	{
 		printf("ffbd == NULL!");
 		return 0;
 	}
+	
+	r = init_spi();
+	CR("init spi failed!");
+
+	W25Q_EnableWrite();
+	W25Q_Erase(0, EraseChip);
+	W25Q_WaitBusy();
 
 	size_t start_addr = addr;
 	while (true)
@@ -140,6 +140,11 @@ int main (int argc, char** argv)
 		return 0;
 	}
 
+	#define C() if (*endptr != '\0') {\
+			printf_help("read 参数不正确!\n");\
+			return;\
+		}
+
 	if (strcmp(*(argv + 1), "read") == 0)
 	{
 		if (argc < 5) 
@@ -147,11 +152,6 @@ int main (int argc, char** argv)
 			printf_help("read 参数数量不足！\n");
 			return 0;
 		}
-		
-		#define C() if (*endptr != '\0') {\
-				printf_help("read 参数不正确!\n");\
-				return;\
-			}
 
 		char* endptr = NULL;
 		uint64_t start_addr = strtoull(*(argv + 2), &endptr, 10);
@@ -166,7 +166,10 @@ int main (int argc, char** argv)
 	}
 	else if (strcmp(*(argv + 1), "write") == 0)
 	{
-
+		char* endptr = NULL;
+		uint64_t start_addr = strtoull(*(argv + 2), &endptr, 10);
+		C();
+		font_write(start_addr, *(argv + 3));
 	}
 	else {
 		printf_help("command invalidate!\n");
