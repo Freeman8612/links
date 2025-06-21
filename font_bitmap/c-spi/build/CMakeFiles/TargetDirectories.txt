@@ -1,0 +1,8 @@
+/root/c-spi/build/CMakeFiles/edit_cache.dir
+/root/c-spi/build/CMakeFiles/FL.dir
+/root/c-spi/build/CMakeFiles/FFBF.dir
+/root/c-spi/build/CMakeFiles/rebuild_cache.dir
+/root/c-spi/build/CMakeFiles/fontlib.dir
+/root/c-spi/build/CMakeFiles/Flash.dir
+/root/c-spi/build/CMakeFiles/W25Q32BV.dir
+/root/c-spi/build/CMakeFiles/SPI.dir

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libFL.a  CMakeFiles/FL.dir/Font_lib/fontlib.c.o
+/usr/bin/ranlib libFL.a

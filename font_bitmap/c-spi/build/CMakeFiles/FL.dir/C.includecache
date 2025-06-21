@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../W25QXXBV/W25Q32BV.h
+stdint.h
+-
+stdbool.h
+-
+stdlib.h
+-
+
+/root/c-spi/Font_lib/fontlib.c
+fontlib.h
+/root/c-spi/Font_lib/fontlib.h
+string.h
+-
+stdio.h
+-
+W25Q32BV.h
+/root/c-spi/Font_lib/W25Q32BV.h
+
+/root/c-spi/Font_lib/fontlib.h
+stdbool.h
+-
+stdint.h
+-
+
