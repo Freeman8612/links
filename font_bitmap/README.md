@@ -36,6 +36,6 @@ W<宽点数>,H<高点数>,S<起始unicode范围>,E<结束unicode范围>
 16点点阵   
 ![./flash中读出验证.gif](./GIF2.gif)       
 
----
 
-*最近项目集成字库，用到了新的flash芯片，读之前没写注释的代码，开始怀疑人生...再次用到该方案生成和验证字库！*       
+* 项目使用示例  
+![./lcd_example.jpg](./lcd_example.jpg)  
