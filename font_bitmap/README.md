@@ -39,3 +39,5 @@ W<宽点数>,H<高点数>,S<起始unicode范围>,E<结束unicode范围>
 
 * 项目使用示例  
 ![./lcd_example.jpg](./lcd_example.jpg)  
+![](./lcd_example1.jpg)  
+![](./lcd_example2.jpg)
